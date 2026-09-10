@@ -1,0 +1,16 @@
+// Jos Stam style semi-Lagrangian Stable Fluids, dimensionless square domain.
+// Velocity: advect → implicit diffuse → pressure projection. Dye follows velocity.
+export class Fluid {
+ constructor(n=128){this.n=n;this.s=n+2;this.len=this.s*this.s;for(const k of ['u','v','u0','v0','r','b','tmp','p','div'])this[k]=new Float32Array(this.len);this.options={time:true,advection:true,pressure:true,viscosity:true,force:true,incompressibility:true};this.nu=.00035;}
+ clear(){for(const k of ['u','v','u0','v0','r','b','tmp','p','div'])this[k].fill(0)}
+ boundary(a,b=0){const n=this.n,s=this.s;for(let i=1;i<=n;i++){a[i]=b===2?-a[i+s]:a[i+s];a[i+(n+1)*s]=b===2?-a[i+n*s]:a[i+n*s];a[i*s]=b===1?-a[1+i*s]:a[1+i*s];a[n+1+i*s]=b===1?-a[n+i*s]:a[n+i*s]}a[0]=(a[1]+a[s])*.5;a[n+1]=(a[n]+a[n+1+s])*.5;a[(n+1)*s]=(a[n*s]+a[(n+1)*s+1])*.5;a[(n+2)*s-1]=(a[(n+1)*s-1]+a[(n+2)*s-2])*.5;}
+ solve(out,src,a,c,b,iterations=10){const n=this.n,s=this.s;for(let k=0;k<iterations;k++){for(let y=1;y<=n;y++)for(let x=1;x<=n;x++){const i=x+y*s;out[i]=(src[i]+a*(out[i-1]+out[i+1]+out[i-s]+out[i+s]))/c}this.boundary(out,b)}}
+ advect(out,src,u,v,dt,b=0){const n=this.n,s=this.s,d=dt*n;for(let j=1;j<=n;j++)for(let i=1;i<=n;i++){const k=i+j*s,x=Math.max(.5,Math.min(n+.5,i-d*u[k])),y=Math.max(.5,Math.min(n+.5,j-d*v[k])),x0=x|0,y0=y|0,fx=x-x0,fy=y-y0;out[k]=(1-fy)*((1-fx)*src[x0+y0*s]+fx*src[x0+1+y0*s])+fy*((1-fx)*src[x0+(y0+1)*s]+fx*src[x0+1+(y0+1)*s])}this.boundary(out,b)}
+ project(){const {n,s,u,v,p,div}=this;p.fill(0);for(let y=1;y<=n;y++)for(let x=1;x<=n;x++){let i=x+y*s;div[i]=-.5*(u[i+1]-u[i-1]+v[i+s]-v[i-s])/n}this.boundary(div);this.solve(p,div,1,4,0,18);for(let y=1;y<=n;y++)for(let x=1;x<=n;x++){let i=x+y*s;u[i]-=.5*n*(p[i+1]-p[i-1]);v[i]-=.5*n*(p[i+s]-p[i-s])}this.boundary(u,1);this.boundary(v,2)}
+ splat(x,y,dx,dy,color=0,amount=1,radius=.028){const n=this.n,s=this.s,cx=x*n+1,cy=y*n+1,rad=radius*n;for(let j=Math.max(1,Math.floor(cy-rad*2));j<=Math.min(n,cy+rad*2);j++)for(let i=Math.max(1,Math.floor(cx-rad*2));i<=Math.min(n,cx+rad*2);i++){let w=Math.exp(-((i-cx)**2+(j-cy)**2)/(rad*rad)),k=i+j*s;this.u[k]=Math.max(-3,Math.min(3,this.u[k]+dx*w));this.v[k]=Math.max(-3,Math.min(3,this.v[k]+dy*w));this.r[k]=Math.min(5,this.r[k]+amount*w*(color===0?1:.08));this.b[k]=Math.min(5,this.b[k]+amount*w*(color===1?1:.06))}}
+ step(dt){dt=Math.min(1/30,Math.max(0,dt));const o=this.options;if(!o.time)return;if(o.force)for(let i=0;i<this.len;i++)this.v[i]-=(this.r[i]+this.b[i])*.11*dt;
+ this.u0.set(this.u);this.v0.set(this.v);if(o.advection){this.advect(this.u,this.u0,this.u0,this.v0,dt,1);this.advect(this.v,this.v0,this.u0,this.v0,dt,2)}
+ if(o.viscosity&&this.nu>0){this.u0.set(this.u);this.v0.set(this.v);let a=dt*this.nu*this.n*this.n;this.solve(this.u,this.u0,a,1+4*a,1,5);this.solve(this.v,this.v0,a,1+4*a,2,5)}if(o.pressure&&o.incompressibility)this.project();
+ this.tmp.set(this.r);this.advect(this.r,this.tmp,this.u,this.v,dt);this.tmp.set(this.b);this.advect(this.b,this.tmp,this.u,this.v,dt);const fade=Math.exp(-dt*.13);for(let i=0;i<this.len;i++){this.r[i]*=fade;this.b[i]*=fade;this.u[i]*=.999;this.v[i]*=.999}}
+ divergence(){let sum=0;const s=this.s;for(let y=2;y<this.n;y++)for(let x=2;x<this.n;x++){let i=x+y*s;sum+=(this.u[i+1]-this.u[i-1]+this.v[i+s]-this.v[i-s])**2}return Math.sqrt(sum)/(this.n-2)}
+}
