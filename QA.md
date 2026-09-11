@@ -7,3 +7,6 @@
 - Screenshots were captured through the native browser testing tool in the task conversation.
 - Reduced motion starts paused, with a single-step control; manual pause uses the same path.
 - The simulation is a coarse two-dimensional approximation. The cascade and singularity diagrams are explicitly labeled three-dimensional/hypothetical illustrations.
+
+- Mobile runtime readback confirmed an 80² grid, one captured drag, and mean frame work of 3.80 ms.
+- Chrome does not expose `document.modelContext`; optional WebMCP tools could not be validated in a supported context. Navigation remains available through the normal controls.
