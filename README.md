@@ -2,6 +2,8 @@
 
 An interactive Navier–Stokes explainer in 13 scenes. Vanilla JavaScript and Canvas 2D; no dependencies or build step.
 
+Live site: **https://redwanr.github.io/navier-stokes/**
+
 ## Run
 
 ```sh
